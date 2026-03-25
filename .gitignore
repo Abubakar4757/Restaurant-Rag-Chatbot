@@ -1,0 +1,37 @@
+# 1. Environment Variables
+.env
+.env.*
+
+# 2. Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 3. Node/Frontend specific
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# 4. OS specific
+.DS_Store
+Thumbs.db
+
+# 5. Database & User Uploads (VITAL FOR RAG)
+vectorstore/
+# Do not upload the uploaded docs, but KEEP the empty directory structure
+docs/*
+!docs/.keep
+
+# 6. IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
