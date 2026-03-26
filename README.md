@@ -10,6 +10,8 @@ pinned: false
 
 # 🍽️ Restaurant RAG Chatbot (Luigi's Assistant)
 
+🔗 **[Live Demo on Vercel: Luigi's Assistant](https://restaurant-rag-chatbot.vercel.app/)**
+
 A full-stack, AI-powered customer service chatbot featuring Retrieval-Augmented Generation (RAG). Built horizontally from scratch, this system allows restaurant owners to effortlessly upload menus, policy documents, and training manuals into a local vector database, granting the AI perfect context to flawlessly answer any specific customer query.
 
 ## 🌟 Features
