@@ -1,6 +1,8 @@
 fastapi[standard]
 uvicorn
 langchain
+langchain-community
+langchain-huggingface
 langchain-groq
 langchain-chroma
 chromadb
