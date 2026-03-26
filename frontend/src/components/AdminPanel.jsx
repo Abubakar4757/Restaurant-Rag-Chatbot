@@ -3,6 +3,9 @@ import toast from 'react-hot-toast';
 import API from '../api';
 
 export default function AdminPanel() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   
@@ -23,8 +26,19 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (isAuthenticated) fetchDocuments();
+  }, [isAuthenticated]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (password === "admin123") {
+      setIsAuthenticated(true);
+      toast.success("Authentication successful!");
+    } else {
+      toast.error("Incorrect password.");
+      setPassword('');
+    }
+  };
 
   const handleUpload = async () => {
     if (!file) return;
@@ -55,6 +69,39 @@ export default function AdminPanel() {
     }
     setDeletingFile(null);
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex-1 overflow-y-auto w-full h-full flex items-center justify-center relative">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-8 shadow-xl max-w-md w-full relative z-10 flex flex-col gap-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="p-4 bg-slate-800/80 rounded-full border border-slate-700/50 mb-2">
+              <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            </div>
+            <h2 className="text-2xl font-bold text-white">Admin Access</h2>
+            <p className="text-slate-400 text-sm">Please enter the master password to manage documents.</p>
+          </div>
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <input 
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              className="w-full bg-slate-800/50 border border-slate-700/50 text-slate-200 placeholder-slate-500 rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+              autoFocus
+            />
+            <button 
+              type="submit"
+              className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-500/25"
+            >
+              Unlock Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto w-full h-full custom-scrollbar relative">
