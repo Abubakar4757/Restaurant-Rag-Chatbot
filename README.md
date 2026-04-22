@@ -8,26 +8,26 @@ app_port: 7860
 pinned: false
 ---
 
-# 🍽️ Restaurant RAG Chatbot (Luigi's Assistant)
+# Restaurant RAG Chatbot (Luigi's Assistant)
 
 🔗 **[Live Demo on Vercel: Luigi's Assistant](https://restaurant-rag-chatbot.vercel.app/)**
 
 A full-stack, AI-powered customer service chatbot featuring Retrieval-Augmented Generation (RAG). Built horizontally from scratch, this system allows restaurant owners to effortlessly upload menus, policy documents, and training manuals into a local vector database, granting the AI perfect context to flawlessly answer any specific customer query.
 
-## 🌟 Features
+## Features
 - **Smart Context Retrieval (RAG):** Answers are grounded strictly in your uploaded PDF or DOCX files.
 - **Real-Time Database Management:** Upload or delete menus straight from the Admin Panel; the Vector Database auto-updates.
 - **Fallback Intelligence:** Smoothly admits when it doesn't know an out-of-scope answer instead of hallucinating.
 - **Premium Glassmorphic UI:** A top-tier, responsive React application styled deeply with Tailwind CSS, Markdown formatting, sliding Toasts, and custom typing physics.
 
-## 🛠️ Tech Stack
+## Tech Stack
 - **Frontend:** React, Vite, Tailwind CSS, Axios, React Markdown, Hot Toast
 - **Backend:** Python, FastAPI, Uvicorn 
 - **AI/Vector:** Langchain, ChromaDB, HuggingFace (`all-MiniLM-L6-v2`), Groq LLM (`llama-3.1-8b-instant`)
 
 ---
 
-## ⚡ Local Setup
+## Local Setup
 
 ### 1. Clone the repository
 ```bash
@@ -65,7 +65,7 @@ npm run dev
 
 ---
 
-## 🚀 Cloud Deployment
+## Cloud Deployment
 
 ### Step 1: Push to GitHub
 Upload this codebase to your GitHub account (the `.gitignore` automatically prevents your API key and vector databases from uploading).
