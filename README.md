@@ -1,20 +1,10 @@
----
-title: Luigi's Assistant
-emoji: 🍝
-colorFrom: yellow
-colorTo: red
-sdk: docker
-app_port: 7860
-pinned: false
----
-
-# 🍽️ Restaurant RAG Chatbot (Luigi's Assistant)
+# Restaurant RAG Chatbot (Luigi's Assistant)
 
 🔗 **[Live Demo on Vercel: Luigi's Assistant](https://restaurant-rag-chatbot.vercel.app/)**
 
 A full-stack, AI-powered customer service chatbot featuring Retrieval-Augmented Generation (RAG). Built horizontally from scratch, this system allows restaurant owners to effortlessly upload menus, policy documents, and training manuals into a local vector database, granting the AI perfect context to flawlessly answer any specific customer query.
 
-## 🌟 Advanced Features
+## Advanced Features
 - **Hybrid Search (BM25 + Semantic):** Combines keyword-based matching (BM25) with semantic vector search (ChromaDB) using Reciprocal Rank Fusion (RRF). Perfect for finding exact menu items like "Margherita Pizza" or "Gluten-free pasta".
 - **Source Attribution (Citations):** Every answer includes clear citations of the source document and page number, ensuring trust and verifiability.
 - **Conversation Memory & Intelligence:** Remembers previous turns to handle follow-up questions (e.g., "how much for that?"). Uses LLM-based query rewriting to maintain context during retrieval.
@@ -22,14 +12,14 @@ A full-stack, AI-powered customer service chatbot featuring Retrieval-Augmented 
 - **Confidence-Based Fallback:** Intelligently detects when a query is out-of-scope based on retrieval similarity scores, preventing hallucinations.
 - **Admin Knowledge Preview:** Restaurant owners can inspect exactly how their documents were chunked and stored in the vector database.
 
-## 🛠️ Tech Stack
+## Tech Stack
 - **Frontend:** React, Vite, Tailwind CSS, Axios, React Markdown, Lucide Icons
 - **Backend:** Python, FastAPI, Uvicorn, SSE-Starlette
 - **AI/Vector:** LangChain, ChromaDB, HuggingFace (`all-MiniLM-L6-v2`), Groq LLM (`llama-3.1-8b-instant`), Rank-BM25
 
 ---
 
-## ⚡ Local Setup
+## Local Setup
 
 ### 1. Clone the repository
 ```bash
@@ -67,7 +57,7 @@ npm run dev
 
 ---
 
-## 🚀 Cloud Deployment
+## Cloud Deployment
 
 ### Step 1: Push to GitHub
 Upload this codebase to your GitHub account (the `.gitignore` automatically prevents your API key and vector databases from uploading).
