@@ -12,6 +12,10 @@ export default function AdminPanel() {
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [deletingFile, setDeletingFile] = useState(null);
+  
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewChunks, setPreviewChunks] = useState([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const fetchDocuments = async () => {
     try {
@@ -70,6 +74,20 @@ export default function AdminPanel() {
     setDeletingFile(null);
   };
 
+  const handlePreview = async (filename) => {
+    setPreviewFile(filename);
+    setLoadingPreview(true);
+    try {
+      const { data } = await API.get(`/document/chunks/${filename}`);
+      setPreviewChunks(data.chunks || []);
+    } catch (err) {
+      toast.error("Failed to load chunks: " + err.message);
+      setPreviewFile(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="flex-1 overflow-y-auto w-full h-full flex items-center justify-center relative">
@@ -93,7 +111,7 @@ export default function AdminPanel() {
             />
             <button 
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-500/25"
+              className="w-full py-3 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-500/25"
             >
               Unlock Dashboard
             </button>
@@ -115,7 +133,7 @@ export default function AdminPanel() {
           </div>
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-              Knowledge <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">Center</span>
+              Knowledge <span className="text-transparent bg-clip-text bg-linear-to-r from-amber-400 to-orange-500">Center</span>
             </h2>
             <p className="text-slate-400 text-sm mt-1">Train the AI by managing your restaurant menus and policy guides.</p>
           </div>
@@ -129,13 +147,13 @@ export default function AdminPanel() {
               Active Documents
             </h3>
             
-            <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-2 shadow-xl min-h-[300px]">
+            <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-2 shadow-xl min-h-75">
               {loadingDocs ? (
-                <div className="h-full min-h-[250px] flex items-center justify-center">
+                <div className="h-full min-h-62.5 flex items-center justify-center">
                   <div className="w-8 h-8 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin"></div>
                 </div>
               ) : documents.length === 0 ? (
-                <div className="h-full min-h-[250px] flex flex-col items-center justify-center text-slate-500 gap-4">
+                <div className="h-full min-h-62.5 flex flex-col items-center justify-center text-slate-500 gap-4">
                   <svg className="w-16 h-16 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
                   <p>No documents found. Upload one to begin.</p>
                 </div>
@@ -144,23 +162,32 @@ export default function AdminPanel() {
                   {documents.map((doc, idx) => (
                     <li key={idx} className="group bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-amber-500/30 rounded-2xl p-4 flex items-center justify-between transition-all duration-300">
                       <div className="flex items-center gap-4 overflow-hidden">
-                        <div className={`p-2.5 rounded-xl flex-shrink-0 ${doc.endsWith('.pdf') ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                        <div className={`p-2.5 rounded-xl shrink-0 ${doc.endsWith('.pdf') ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'}`}>
                           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2.5L17.5 9H13V4.5zM6 20V4h5v7h7v9H6z"/></svg>
                         </div>
                         <span className="text-slate-200 font-medium truncate text-sm sm:text-base">{doc}</span>
                       </div>
-                      <button 
-                        onClick={() => handleDelete(doc)}
-                        disabled={deletingFile === doc}
-                        className="p-2.5 rounded-xl bg-slate-900/50 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-slate-700/50 hover:border-red-500/30 disabled:opacity-50"
-                        title="Delete Document"
-                      >
-                        {deletingFile === doc ? (
-                           <div className="w-5 h-5 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin"></div>
-                        ) : (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handlePreview(doc)}
+                          className="p-2.5 rounded-xl bg-slate-900/50 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 transition-all border border-slate-700/50 hover:border-amber-500/30"
+                          title="Preview Chunks"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(doc)}
+                          disabled={deletingFile === doc}
+                          className="p-2.5 rounded-xl bg-slate-900/50 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-slate-700/50 hover:border-red-500/30 disabled:opacity-50"
+                          title="Delete Document"
+                        >
+                          {deletingFile === doc ? (
+                             <div className="w-5 h-5 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin"></div>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                          )}
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -174,7 +201,7 @@ export default function AdminPanel() {
               Upload New
             </h3>
             
-            <div className={`bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-md border ${file ? 'border-amber-500/50' : 'border-slate-700/50'} rounded-3xl p-6 shadow-xl transition-all duration-300 relative overflow-hidden h-full flex flex-col justify-between min-h-[300px]`}>
+            <div className={`bg-linear-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-md border ${file ? 'border-amber-500/50' : 'border-slate-700/50'} rounded-3xl p-6 shadow-xl transition-all duration-300 relative overflow-hidden h-full flex flex-col justify-between min-h-75`}>
               <div className="flex-1 flex flex-col justify-center">
                 <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-600/60 rounded-2xl cursor-pointer hover:border-amber-500/60 hover:bg-amber-500/5 transition-all w-full h-full group">
                   <div className={`p-4 rounded-full mb-4 transition-all duration-300 ${file ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-400 group-hover:text-amber-400 group-hover:scale-110'}`}>
@@ -196,7 +223,7 @@ export default function AdminPanel() {
                 <button 
                   onClick={handleUpload} 
                   disabled={!file || uploading}
-                  className="w-full py-4 text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 font-bold rounded-2xl disabled:opacity-20 disabled:grayscale transition-all shadow-lg hover:shadow-amber-500/25 flex justify-center items-center gap-2"
+                  className="w-full py-4 text-sm bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 font-bold rounded-2xl disabled:opacity-20 disabled:grayscale transition-all shadow-lg hover:shadow-amber-500/25 flex justify-center items-center gap-2"
                 >
                   {uploading ? (
                     <>
@@ -209,6 +236,49 @@ export default function AdminPanel() {
             </div>
           </div>
         </div>
+
+        {/* Preview Modal */}
+        {previewFile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setPreviewFile(null)}></div>
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[80vh] flex flex-col shadow-2xl relative z-10 overflow-hidden">
+              <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                <div>
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span className="text-amber-500">Preview:</span> {previewFile}
+                  </h3>
+                  <p className="text-slate-400 text-sm mt-1">{previewChunks.length} Chunks found in database</p>
+                </div>
+                <button onClick={() => setPreviewFile(null)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                  <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar flex flex-col gap-4 bg-slate-950/30">
+                {loadingPreview ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-4">
+                    <div className="w-10 h-10 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin"></div>
+                    <p className="text-slate-400 animate-pulse">Retrieving chunks from vector store...</p>
+                  </div>
+                ) : previewChunks.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500">
+                    No chunks found for this document. It may have been deleted or not yet ingested.
+                  </div>
+                ) : (
+                  previewChunks.map((chunk, idx) => (
+                    <div key={idx} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex items-center justify-between text-xs font-mono tracking-wider uppercase text-slate-500 border-b border-slate-700/30 pb-2">
+                        <span>Chunk #{chunk.metadata.chunk_index + 1}</span>
+                        <span>Page {chunk.metadata.page || 'N/A'} • {chunk.content.length} chars</span>
+                      </div>
+                      <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{chunk.content}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

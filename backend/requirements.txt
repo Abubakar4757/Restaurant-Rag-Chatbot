@@ -13,3 +13,5 @@ tf-keras
 python-multipart
 python-dotenv
 requests
+rank_bm25
+sse-starlette

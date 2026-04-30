@@ -5,7 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import config
 from ingest import ingest_document, delete_document
-from retriever import get_rag_response
+from retriever import get_rag_response, get_rag_stream
+from sse_starlette.sse import EventSourceResponse
+import json
 
 app = FastAPI(title="Restaurant RAG API")
 
@@ -25,6 +27,7 @@ def startup_event():
 
 class ChatRequest(BaseModel):
     message: str
+    history: list = []
 
 @app.get("/")
 def read_root():
@@ -62,10 +65,50 @@ def chat(request: ChatRequest):
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
         
     try:
-        answer = get_rag_response(request.message)
+        answer = get_rag_response(request.message, request.history)
         return {"answer": answer}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM generation failed: {str(e)}")
+
+@app.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+    
+    async def event_generator():
+        try:
+            for token in get_rag_stream(request.message, request.history):
+                yield {"data": token}
+        except Exception as e:
+            yield {"data": f"Error: {str(e)}"}
+
+    return EventSourceResponse(event_generator())
+
+@app.get("/document/chunks/{filename}")
+def get_document_chunks(filename: str):
+    from langchain_chroma import Chroma
+    from retriever import get_embedding_function
+    
+    db = Chroma(
+        persist_directory=config.CHROMA_PATH,
+        embedding_function=get_embedding_function()
+    )
+    
+    # Filter by source_filename
+    results = db.get(where={"source_filename": filename})
+    
+    chunks = []
+    if results and results["documents"]:
+        for i in range(len(results["documents"])):
+            chunks.append({
+                "content": results["documents"][i],
+                "metadata": results["metadatas"][i]
+            })
+    
+    # Sort by chunk_index
+    chunks.sort(key=lambda x: x["metadata"].get("chunk_index", 0))
+    
+    return {"filename": filename, "chunks": chunks}
 
 @app.delete("/document/{filename}")
 def delete_doc(filename: str):

@@ -14,16 +14,18 @@ pinned: false
 
 A full-stack, AI-powered customer service chatbot featuring Retrieval-Augmented Generation (RAG). Built horizontally from scratch, this system allows restaurant owners to effortlessly upload menus, policy documents, and training manuals into a local vector database, granting the AI perfect context to flawlessly answer any specific customer query.
 
-## 🌟 Features
-- **Smart Context Retrieval (RAG):** Answers are grounded strictly in your uploaded PDF or DOCX files.
-- **Real-Time Database Management:** Upload or delete menus straight from the Admin Panel; the Vector Database auto-updates.
-- **Fallback Intelligence:** Smoothly admits when it doesn't know an out-of-scope answer instead of hallucinating.
-- **Premium Glassmorphic UI:** A top-tier, responsive React application styled deeply with Tailwind CSS, Markdown formatting, sliding Toasts, and custom typing physics.
+## 🌟 Advanced Features
+- **Hybrid Search (BM25 + Semantic):** Combines keyword-based matching (BM25) with semantic vector search (ChromaDB) using Reciprocal Rank Fusion (RRF). Perfect for finding exact menu items like "Margherita Pizza" or "Gluten-free pasta".
+- **Source Attribution (Citations):** Every answer includes clear citations of the source document and page number, ensuring trust and verifiability.
+- **Conversation Memory & Intelligence:** Remembers previous turns to handle follow-up questions (e.g., "how much for that?"). Uses LLM-based query rewriting to maintain context during retrieval.
+- **Token-by-Token Streaming:** Lightning-fast, real-time responses using Server-Sent Events (SSE), providing a premium ChatGPT-like experience.
+- **Confidence-Based Fallback:** Intelligently detects when a query is out-of-scope based on retrieval similarity scores, preventing hallucinations.
+- **Admin Knowledge Preview:** Restaurant owners can inspect exactly how their documents were chunked and stored in the vector database.
 
 ## 🛠️ Tech Stack
-- **Frontend:** React, Vite, Tailwind CSS, Axios, React Markdown, Hot Toast
-- **Backend:** Python, FastAPI, Uvicorn 
-- **AI/Vector:** Langchain, ChromaDB, HuggingFace (`all-MiniLM-L6-v2`), Groq LLM (`llama-3.1-8b-instant`)
+- **Frontend:** React, Vite, Tailwind CSS, Axios, React Markdown, Lucide Icons
+- **Backend:** Python, FastAPI, Uvicorn, SSE-Starlette
+- **AI/Vector:** LangChain, ChromaDB, HuggingFace (`all-MiniLM-L6-v2`), Groq LLM (`llama-3.1-8b-instant`), Rank-BM25
 
 ---
 

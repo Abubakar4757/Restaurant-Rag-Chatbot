@@ -19,5 +19,5 @@ COPY . .
 # Create the storage folders so RAG doesn't crash on startup
 RUN mkdir -p docs vectorstore
 
-# Hugging Face Spaces automatically exposes Port 7860
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Use PORT env var (Render sets it), fallback to 7860 for HF Spaces
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}

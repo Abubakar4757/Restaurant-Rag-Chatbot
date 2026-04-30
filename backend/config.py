@@ -18,7 +18,7 @@ CHROMA_PATH = os.path.join(DATA_DIR, "vectorstore")
 DOCS_PATH = os.path.join(DATA_DIR, "docs")
 
 CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
+CHUNK_OVERLAP = 150
 
 SYSTEM_PROMPT = """You are a friendly and concise restaurant assistant.
 You must answer the user's question based ONLY on the provided context.

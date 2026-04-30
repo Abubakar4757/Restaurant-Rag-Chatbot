@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: restaurant-rag-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RENDER
+        value: "true"
+    disk:
+      name: rag-data
+      mountPath: /data
+      sizeGB: 1

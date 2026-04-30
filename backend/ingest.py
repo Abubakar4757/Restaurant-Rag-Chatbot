@@ -33,6 +33,11 @@ def ingest_document(file_path):
     )
     chunks = splitter.split_documents(docs)
     
+    # Add metadata
+    for i, chunk in enumerate(chunks):
+        chunk.metadata["chunk_index"] = i
+        chunk.metadata["source_filename"] = os.path.basename(file_path)
+    
     print(f"✅ Split {os.path.basename(file_path)} into {len(chunks)} chunks.")
 
     db = Chroma(
@@ -57,8 +62,8 @@ def delete_document(source_name):
     # In langchain-chroma we can fetch and delete, but chromadb client allows delete with where clause
     collection = db._collection
     try:
-        collection.delete(where={"source": {"$contains": source_name}})
-        print(f"✅ Deleted document chunks containing source: {source_name}")
+        collection.delete(where={"source_filename": source_name})
+        print(f"✅ Deleted document chunks with source_filename: {source_name}")
     except Exception as e:
         print(f"❌ Error deleting document: {e}")
 
