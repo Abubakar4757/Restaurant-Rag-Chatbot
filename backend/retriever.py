@@ -7,8 +7,13 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
+try:
+    from langchain_community.retrievers import BM25Retriever
+    BM25_AVAILABLE = True
+except ImportError:
+    BM25_AVAILABLE = False
+    print("WARNING: rank_bm25 not available, falling back to vector-only search")
 import config
 
 def get_embedding_function():
@@ -49,15 +54,16 @@ def retrieve_context_with_sources(query, k=8):
     vector_results = db.similarity_search(query, k=k)
 
     bm25_results = []
-    all_docs = db.get()
-    if all_docs and all_docs.get("documents"):
-        documents = [
-            Document(page_content=doc, metadata=meta)
-            for doc, meta in zip(all_docs["documents"], all_docs["metadatas"])
-        ]
-        bm25_retriever = BM25Retriever.from_documents(documents)
-        bm25_retriever.k = k
-        bm25_results = bm25_retriever.invoke(query)
+    if BM25_AVAILABLE:
+        all_docs = db.get()
+        if all_docs and all_docs.get("documents"):
+            documents = [
+                Document(page_content=doc, metadata=meta)
+                for doc, meta in zip(all_docs["documents"], all_docs["metadatas"])
+            ]
+            bm25_retriever = BM25Retriever.from_documents(documents)
+            bm25_retriever.k = k
+            bm25_results = bm25_retriever.invoke(query)
 
     results = _rrf_merge([vector_results, bm25_results], k=k)
     
