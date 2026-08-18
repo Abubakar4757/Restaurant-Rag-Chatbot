@@ -1,5 +1,6 @@
 import os
 import json
+import re
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -129,6 +130,46 @@ GREETINGS = {"hi", "hello", "hey", "hola", "yo", "sup", "good morning", "good ev
 def _is_greeting(query):
     return query.strip().lower().rstrip("!.,?") in GREETINGS
 
+def _filter_think_stream(stream):
+    buffer = ""
+    in_think = False
+    checked_start = False
+    
+    for chunk in stream:
+        buffer += chunk.content
+        
+        if not checked_start:
+            if len(buffer) < 7:
+                if "<think>".startswith(buffer):
+                    continue
+                else:
+                    checked_start = True
+                    yield buffer
+                    buffer = ""
+            else:
+                if buffer.startswith("<think>"):
+                    in_think = True
+                    checked_start = True
+                else:
+                    checked_start = True
+                    yield buffer
+                    buffer = ""
+                    
+        if in_think:
+            if "</think>" in buffer:
+                parts = buffer.split("</think>", 1)
+                buffer = parts[1]
+                in_think = False
+                if buffer:
+                    yield buffer
+                    buffer = ""
+            else:
+                continue
+        else:
+            if buffer:
+                yield buffer
+                buffer = ""
+
 def get_rag_stream(query, history=[]):
     if _is_greeting(query):
         yield "Hello! Welcome to Luigi's Trattoria. How can I help you today? You can ask about our menu, hours, reservations, or anything else!"
@@ -163,9 +204,9 @@ def get_rag_stream(query, history=[]):
     source_attribution = "\n\n**Sources:** " + ", ".join(sources) if sources else ""
     
     full_answer = ""
-    for chunk in chain.stream({"context": context, "question": query}):
-        full_answer += chunk.content
-        yield chunk.content
+    for chunk in _filter_think_stream(chain.stream({"context": context, "question": query})):
+        full_answer += chunk
+        yield chunk
         
     if source_attribution:
         yield source_attribution
@@ -215,7 +256,11 @@ def get_rag_response(query, history=[]):
         "question": query
     })
     
-    return response.content + source_attribution
+    content = response.content
+    if "<think>" in content and "</think>" in content:
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        
+    return content + source_attribution
 
 if __name__ == "__main__":
     import sys
