@@ -2,30 +2,75 @@ import React from 'react';
 
 export default function Navbar({ activeTab, setActiveTab }) {
   return (
-    <header className="flex-none px-6 py-4 flex items-center justify-between border-b border-slate-800/60 bg-slate-950/40 backdrop-blur-xl z-50">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center shadow-lg shadow-amber-500/20">
-          <svg className="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-        </div>
-        <h1 className="text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent tracking-tight hidden sm:block">
-          Luigi's Assistant
-        </h1>
-      </div>
-      
-      <div className="flex bg-slate-900/80 p-1.5 rounded-full border border-slate-800/80 shadow-inner">
-        <button 
+    <nav className="bg-surface/60 backdrop-blur-xl fixed top-0 w-full z-50 border-b border-outline-variant/30 shadow-[0px_0px_15px_rgba(242,202,80,0.1)]">
+      <div className="flex justify-between items-center h-16 px-4 md:px-12 max-w-[1200px] mx-auto">
+        {/* Brand */}
+        <div 
           onClick={() => setActiveTab('chat')}
-          className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 ${activeTab === 'chat' ? 'bg-amber-500 text-slate-950 shadow-md transform scale-[1.02]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+          className="flex items-center gap-2.5 cursor-pointer group"
         >
-          Customer Chat
-        </button>
-        <button 
-          onClick={() => setActiveTab('admin')}
-          className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 ${activeTab === 'admin' ? 'bg-amber-500 text-slate-950 shadow-md transform scale-[1.02]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
-        >
-          Admin Panel
-        </button>
+          <div className="w-8 h-8 rounded-full bg-surface-container border border-outline-variant/40 flex items-center justify-center shadow-inner group-hover:border-primary/50 transition-colors">
+            <span className="material-symbols-outlined text-primary text-lg" data-weight="fill">
+              robot_2
+            </span>
+          </div>
+          <span className="font-headline-md text-lg md:text-xl font-semibold text-primary tracking-tight">
+            Luigi's Assistant
+          </span>
+        </div>
+
+        {/* Central Pill Toggle (Desktop) */}
+        <div className="hidden md:flex bg-surface-container-high rounded-full p-1 border border-outline-variant/20">
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-6 py-2 rounded-full transition-all duration-300 font-label-caps text-label-caps active:scale-95 ${
+              activeTab === 'chat'
+                ? 'bg-primary text-on-primary shadow-[0px_0px_12px_rgba(242,202,80,0.25)] font-semibold'
+                : 'text-on-surface-variant hover:text-primary hover:bg-primary-fixed/10 hover:shadow-[0px_0px_12px_rgba(242,202,80,0.15)]'
+            }`}
+          >
+            Customer Assistant
+          </button>
+          <button
+            onClick={() => setActiveTab('admin')}
+            className={`px-6 py-2 rounded-full transition-all duration-300 font-label-caps text-label-caps active:scale-95 flex items-center gap-2 ${
+              activeTab === 'admin'
+                ? 'bg-primary text-on-primary shadow-[0px_0px_12px_rgba(242,202,80,0.25)] font-semibold'
+                : 'text-on-surface-variant hover:text-primary hover:bg-primary-fixed/10 hover:shadow-[0px_0px_12px_rgba(242,202,80,0.15)]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+            Admin Center
+          </button>
+        </div>
+
+        {/* Mobile Pill Toggle */}
+        <div className="md:hidden flex bg-surface-container-high rounded-full p-1 border border-outline-variant/20">
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-3 py-1.5 rounded-full transition-all duration-300 font-label-caps text-[11px] active:scale-95 ${
+              activeTab === 'chat'
+                ? 'bg-primary text-on-primary font-semibold'
+                : 'text-on-surface-variant hover:text-primary'
+            }`}
+          >
+            Customer
+          </button>
+          <button
+            onClick={() => setActiveTab('admin')}
+            className={`px-3 py-1.5 rounded-full transition-all duration-300 font-label-caps text-[11px] active:scale-95 ${
+              activeTab === 'admin'
+                ? 'bg-primary text-on-primary font-semibold'
+                : 'text-on-surface-variant hover:text-primary'
+            }`}
+          >
+            Admin
+          </button>
+        </div>
+
+        {/* Right Spacer for balance on desktop */}
+        <div className="w-8 h-8 hidden md:block"></div>
       </div>
-    </header>
+    </nav>
   );
 }

@@ -2,13 +2,26 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import API from '../api';
 
+const DEFAULT_SUGGESTIONS = [
+  "What pizzas do you have?",
+  "Book a table for two",
+  "Gluten-free options",
+  "Opening hours & address"
+];
+
 export default function ChatWidget() {
   const [messages, setMessages] = useState([
-    { id: 1, role: 'bot', text: "Hello! I am Luigi's virtual assistant. Ask me anything about our menu or restaurant!", isNew: false }
+    {
+      id: 1,
+      role: 'bot',
+      text: "Good afternoon. I am Luigi's Assistant. How may I orchestrate your dining experience today? I can assist with reservations, menu inquiries, or special accommodations.",
+      sources: []
+    }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const [activeSuggestions, setActiveSuggestions] = useState(DEFAULT_SUGGESTIONS);
   const endOfMessagesRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -17,7 +30,46 @@ export default function ChatWidget() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, loading]);
+
+  // Helper to parse sources and suggestions from text
+  const parseMessageData = (rawText) => {
+    let cleanText = rawText;
+    let sources = [];
+    let suggestions = [];
+
+    // Extract suggestions if present
+    if (cleanText.includes('SUGGESTIONS:')) {
+      const parts = cleanText.split('SUGGESTIONS:');
+      cleanText = parts[0];
+      try {
+        suggestions = JSON.parse(parts[1]);
+      } catch (e) {
+        console.error("Failed to parse suggestions JSON", e);
+      }
+    }
+
+    // Extract sources if present
+    if (cleanText.includes('**Sources:**')) {
+      const parts = cleanText.split('**Sources:**');
+      cleanText = parts[0].trim();
+      const sourcesStr = parts[1]?.trim() || '';
+      sources = sourcesStr
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    } else if (cleanText.includes('Sources:')) {
+      const parts = cleanText.split('Sources:');
+      cleanText = parts[0].trim();
+      const sourcesStr = parts[1]?.trim() || '';
+      sources = sourcesStr
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    return { cleanText, sources, suggestions };
+  };
 
   const handleSend = async (e, customInput) => {
     e?.preventDefault();
@@ -26,13 +78,12 @@ export default function ChatWidget() {
 
     const userMsg = messageToSend;
     setInput('');
-    const newMessages = [...messages, { id: Date.now(), role: 'user', text: userMsg, isNew: false }];
+    const newMessages = [...messages, { id: Date.now(), role: 'user', text: userMsg }];
     setMessages(newMessages);
     setLoading(true);
 
-    // Add a placeholder for the bot message
     const botMsgId = Date.now() + 1;
-    setMessages(prev => [...prev, { id: botMsgId, role: 'bot', text: '', isNew: true }]);
+    setMessages(prev => [...prev, { id: botMsgId, role: 'bot', text: '', sources: [] }]);
 
     try {
       const response = await fetch(`${API.defaults.baseURL}/chat/stream`, {
@@ -46,11 +97,11 @@ export default function ChatWidget() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to fetch stream');
+      if (!response.ok) throw new Error(`Server returned status ${response.status}`);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let accumulatedText = '';
+      let accumulatedRawText = '';
       let buffer = '';
       setStreaming(true);
 
@@ -59,7 +110,6 @@ export default function ChatWidget() {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        // Normalize Windows line endings
         buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         const parts = buffer.split('\n\n');
         buffer = parts.pop() || '';
@@ -69,24 +119,16 @@ export default function ChatWidget() {
           for (const line of lines) {
             if (line.startsWith('data:')) {
               const data = line.startsWith('data: ') ? line.slice(6) : line.slice(5);
-              if (data.includes('SUGGESTIONS:')) {
-                const [textPart, suggestionPart] = data.split('SUGGESTIONS:');
-                if (textPart) {
-                  accumulatedText += textPart;
-                }
-                try {
-                  const suggestions = JSON.parse(suggestionPart);
-                  setMessages(prev => prev.map(m => 
-                    m.id === botMsgId ? { ...m, text: accumulatedText, suggestions } : m
-                  ));
-                } catch (e) {
-                  console.error("Failed to parse suggestions", e);
-                }
-              } else if (data) {
-                accumulatedText += data;
-                setMessages(prev => prev.map(m => 
-                  m.id === botMsgId ? { ...m, text: accumulatedText } : m
-                ));
+              accumulatedRawText += data;
+
+              const { cleanText, sources, suggestions } = parseMessageData(accumulatedRawText);
+
+              setMessages(prev => prev.map(m =>
+                m.id === botMsgId ? { ...m, text: cleanText, sources } : m
+              ));
+
+              if (suggestions && suggestions.length > 0) {
+                setActiveSuggestions(suggestions);
               }
             }
           }
@@ -95,116 +137,163 @@ export default function ChatWidget() {
       setStreaming(false);
     } catch (err) {
       setStreaming(false);
-      setMessages(prev => prev.map(m => 
-        m.id === botMsgId ? { 
-          ...m, 
-          text: "System Offline. Unable to reach the knowledge database: " + err.message, 
-          isError: true 
+      setMessages(prev => prev.map(m =>
+        m.id === botMsgId ? {
+          ...m,
+          text: "I am having trouble connecting to the restaurant's servers right now. Please try again in a moment.",
+          isError: true
         } : m
       ));
+    } finally {
+      setStreaming(false);
+      setLoading(false);
     }
-    setStreaming(false);
-    setLoading(false);
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-900/10 relative">
-      <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-amber-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+    <main className="flex-1 flex flex-col justify-end pt-20 pb-4 px-4 md:px-8 max-w-[850px] w-full mx-auto relative overflow-hidden h-screen">
+      {/* Background ambient lighting */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[140px]"></div>
+      </div>
 
-      {/* Messages Window */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar flex flex-col gap-6 scroll-smooth z-10">
+      {/* Chat Timeline */}
+      <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 py-4 z-10">
+        {/* System Greeting Header */}
+        <div className="text-center text-on-surface-variant/40 font-label-caps text-[11px] mb-2 tracking-widest">
+          Session Active • Luigi's Concierge
+        </div>
+
+        {/* Message List */}
         {messages.filter(msg => msg.role === 'user' || msg.text).map((msg) => (
-          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
-            {msg.role === 'bot' && (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-800 to-slate-700 flex items-center justify-center mr-4 mt-0.5 flex-shrink-0 border border-slate-600/50 shadow-lg relative group">
-                <span className="text-xl drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">🤖</span>
-                {/* Active Bot Indicator */}
-                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-800 rounded-full"></div>
-              </div>
-            )}
-            <div className={`max-w-[85%] sm:max-w-[75%] rounded-3xl px-6 py-4 shadow-xl ${
-              msg.role === 'user' 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 rounded-tr-sm font-semibold tracking-wide' 
-                : msg.isError 
-                  ? 'bg-red-500/10 border border-red-500/20 text-red-400 rounded-tl-sm'
-                  : 'bg-slate-800/80 backdrop-blur-md text-slate-200 border border-slate-700/50 rounded-tl-sm text-[15px]'
-            }`}>
-              {msg.role === 'bot' && !msg.isError ? (
-                <ReactMarkdown
-                  components={{
-                    strong: ({node, ...props}) => <span className="font-bold text-amber-50" {...props} />,
-                    ul: ({node, ...props}) => <ul className="list-disc list-outside ml-4 mt-2 space-y-1 marker:text-amber-500" {...props} />,
-                    ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-4 mt-2 space-y-1 marker:text-amber-500" {...props} />,
-                    p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
-                    h1: ({node, ...props}) => <h1 className="text-xl font-bold text-amber-400 mt-3 mb-2" {...props} />,
-                    h2: ({node, ...props}) => <h2 className="text-lg font-bold text-amber-400 mt-3 mb-2" {...props} />,
-                    h3: ({node, ...props}) => <h3 className="text-md font-semibold text-amber-300 mt-2 mb-1" {...props} />,
-                    li: ({node, ...props}) => <li className="pl-1" {...props} />
-                  }}
-                >
+          <div
+            key={msg.id}
+            className={`flex flex-col max-w-[88%] md:max-w-[80%] message-enter ${
+              msg.role === 'user' ? 'items-end self-end' : 'items-start self-start'
+            }`}
+          >
+            {msg.role === 'user' ? (
+              <div className="bg-gradient-to-br from-primary to-secondary-container rounded-2xl rounded-tr-sm p-4 shadow-[0_4px_20px_rgba(242,202,80,0.15)] text-on-primary">
+                <p className="font-body-md text-sm md:text-base text-on-primary font-medium leading-relaxed">
                   {msg.text}
-                </ReactMarkdown>
-              ) : (
-                msg.text
-              )}
-              {msg.suggestions && msg.suggestions.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-500">
-                  {msg.suggestions.map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleSend(null, suggestion)}
-                      className="text-xs bg-slate-700/50 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 border border-slate-600/50 hover:border-amber-500/30 rounded-full px-3 py-1.5 transition-all"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+                </p>
+              </div>
+            ) : (
+              <div className={`glass-panel rounded-2xl rounded-tl-sm p-5 shadow-sm border border-outline-variant/30 flex flex-col gap-3 relative ${
+                msg.isError ? 'border-error/40 bg-error/5 text-error' : 'text-on-surface'
+              }`}>
+                <div className="font-body-md text-sm md:text-base text-on-surface leading-relaxed markdown-content">
+                  <ReactMarkdown
+                    components={{
+                      strong: ({node, ...props}) => <span className="font-semibold text-primary" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc list-outside ml-4 my-2 space-y-1 marker:text-primary" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-4 my-2 space-y-1 marker:text-primary" {...props} />,
+                      p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+                      h1: ({node, ...props}) => <h1 className="text-lg font-semibold text-primary mt-2 mb-1" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-base font-semibold text-primary mt-2 mb-1" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-sm font-semibold text-primary mt-1 mb-0.5" {...props} />,
+                      li: ({node, ...props}) => <li className="pl-1" {...props} />
+                    }}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
                 </div>
-              )}
-            </div>
-            {msg.role === 'user' && (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-200 to-amber-400 flex items-center justify-center ml-4 mt-0.5 flex-shrink-0 border border-amber-500/50 shadow-lg relative">
-                <svg className="w-5 h-5 text-amber-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+
+                {/* Referenced Sources Section */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-2 pt-3 border-t border-surface-variant/50">
+                    <span className="font-label-caps text-[11px] text-on-surface-variant/70 mb-2 block tracking-wider">
+                      Referenced Sources
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {msg.sources.map((src, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-surface-container text-primary font-label-caps text-[11px] px-3 py-1.5 rounded-full border border-primary/20 flex items-center gap-1.5 shadow-sm"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">
+                            {src.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'description'}
+                          </span>
+                          {src}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         ))}
-        
-        {loading && !messages.some(m => m.isNew && m.text) && (
-          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-800 to-slate-700 flex items-center justify-center mr-4 mt-0.5 flex-shrink-0 border border-slate-600/50 shadow-lg relative">
-                <svg className="w-5 h-5 text-amber-500/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
-                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-amber-500 border-2 border-slate-800 rounded-full animate-pulse"></div>
+
+        {/* Live Typing Indicator */}
+        {loading && !messages.some(m => m.id && m.role === 'bot' && m.text) && (
+          <div className="flex flex-col items-start max-w-[85%] message-enter opacity-75">
+            <div className="bg-surface-container-high/40 rounded-2xl rounded-tl-sm px-4 py-3 border border-outline-variant/10">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full bounce bounce1"></div>
+                <div className="w-1.5 h-1.5 bg-primary rounded-full bounce bounce2"></div>
+                <div className="w-1.5 h-1.5 bg-primary rounded-full bounce"></div>
               </div>
-            <div className="bg-slate-800/60 backdrop-blur-md border border-slate-700/50 rounded-3xl rounded-tl-sm px-6 py-5 shadow-xl flex items-center gap-2">
-              <div className="w-2.5 h-2.5 bg-amber-500/80 rounded-full animate-bounce [animation-delay:-0.3s] drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]"></div>
-              <div className="w-2.5 h-2.5 bg-amber-500/80 rounded-full animate-bounce [animation-delay:-0.15s] drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]"></div>
-              <div className="w-2.5 h-2.5 bg-amber-500/80 rounded-full animate-bounce drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]"></div>
             </div>
           </div>
         )}
+
         <div ref={endOfMessagesRef} />
       </div>
 
-      {/* Input Field Area */}
-      <div className="p-4 sm:p-6 bg-slate-900/50 border-t border-slate-800/60 backdrop-blur-2xl z-20">
-        <form onSubmit={handleSend} className="relative flex items-center max-w-4xl mx-auto w-full group">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your question..."
-            autoFocus
-            className="w-full bg-slate-950/80 border border-slate-700/80 rounded-full pl-6 pr-16 py-[18px] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/80 focus:bg-slate-900 focus:ring-2 focus:ring-amber-500/20 transition-all shadow-inner text-[15px]"
-          />
-          <button 
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="absolute right-2 w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-900 flex items-center justify-center hover:from-amber-400 hover:to-orange-400 focus:outline-none disabled:opacity-30 disabled:grayscale transition-all shadow-lg hover:shadow-orange-500/30 transform hover:scale-105 active:scale-95 border-none"
-          >
-            <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-          </button>
+      {/* Sticky Footer Interaction Area */}
+      <div className="w-full flex flex-col gap-2.5 pt-3 bg-background relative z-20 before:absolute before:top-[-30px] before:left-0 before:w-full before:h-[30px] before:bg-gradient-to-t before:from-background before:to-transparent">
+        {/* Follow-up Suggestions Chips */}
+        {activeSuggestions && activeSuggestions.length > 0 && (
+          <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1">
+            {activeSuggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(null, suggestion)}
+                className="flex-shrink-0 bg-transparent border border-outline-variant/40 text-on-surface-variant font-label-caps text-[11px] px-3.5 py-1.5 rounded-full hover:text-primary hover:border-primary/50 transition-all glow-hover active:scale-95"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Input Bar */}
+        <form onSubmit={handleSend} className="relative w-full group">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity blur-md"></div>
+          <div className="relative bg-surface-container-low border border-outline-variant/40 rounded-full flex items-center p-1.5 md:p-2 shadow-inner focus-within:border-primary/60 transition-colors">
+            <div className="p-2 text-on-surface-variant flex items-center justify-center ml-1">
+              <span className="material-symbols-outlined text-[20px] text-on-surface-variant/60">
+                chat_bubble_outline
+              </span>
+            </div>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Inquire about the menu, hours, or reservations..."
+              autoFocus
+              className="flex-grow bg-transparent border-none text-on-surface font-body-md focus:outline-none placeholder:text-on-surface-variant/40 px-2 py-1.5 text-sm md:text-base"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center hover:shadow-[0_0_15px_rgba(242,202,80,0.4)] transition-all active:scale-95 ml-2 shrink-0 disabled:opacity-40 disabled:grayscale disabled:hover:shadow-none cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]" data-weight="fill">
+                send
+              </span>
+            </button>
+          </div>
         </form>
+
+        {/* Disclaimer Note */}
+        <div className="text-center">
+          <span className="font-label-caps text-[10px] text-on-surface-variant/40 tracking-wider">
+            AI may produce inaccurate information about menu items.
+          </span>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

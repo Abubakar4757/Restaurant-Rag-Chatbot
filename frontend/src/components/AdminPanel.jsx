@@ -8,11 +8,11 @@ export default function AdminPanel() {
 
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  
+
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [deletingFile, setDeletingFile] = useState(null);
-  
+
   const [previewFile, setPreviewFile] = useState(null);
   const [previewChunks, setPreviewChunks] = useState([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -44,25 +44,28 @@ export default function AdminPanel() {
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (e) => {
+    e?.stopPropagation();
     if (!file) return;
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
     try {
       const { data } = await API.post("/upload", formData);
-      toast.success(`Extracted ${data.chunks_stored} vectorized chunks for ${data.filename}.`);
+      toast.success(`Vectorized ${data.chunks_stored} chunks for ${data.filename}.`);
       setFile(null);
       fetchDocuments();
     } catch (err) {
       toast.error(err.response?.data?.detail || err.message);
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
-  const handleDelete = async (filename) => {
+  const handleDelete = async (filename, e) => {
+    e?.stopPropagation();
     if (!confirm(`Are you sure you want to permanently delete ${filename}?`)) return;
-    
+
     setDeletingFile(filename);
     try {
       const { data } = await API.delete(`/document/${filename}`);
@@ -70,11 +73,13 @@ export default function AdminPanel() {
       fetchDocuments();
     } catch (err) {
       toast.error("Error deleting file: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setDeletingFile(null);
     }
-    setDeletingFile(null);
   };
 
-  const handlePreview = async (filename) => {
+  const handlePreview = async (filename, e) => {
+    e?.stopPropagation();
     setPreviewFile(filename);
     setLoadingPreview(true);
     try {
@@ -88,32 +93,44 @@ export default function AdminPanel() {
     }
   };
 
+  // 1. Password Protection Modal
   if (!isAuthenticated) {
     return (
-      <div className="flex-1 overflow-y-auto w-full h-full flex items-center justify-center relative">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-8 shadow-xl max-w-md w-full relative z-10 flex flex-col gap-6">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="p-4 bg-slate-800/80 rounded-full border border-slate-700/50 mb-2">
-              <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-            </div>
-            <h2 className="text-2xl font-bold text-white">Admin Access</h2>
-            <p className="text-slate-400 text-sm">Please enter the master password to manage documents.</p>
+      <div className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-2xl flex items-center justify-center p-4">
+        <div className="glass-panel glass-border rounded-2xl p-8 flex flex-col items-center w-[420px] max-w-[90%] shadow-[0_0_50px_rgba(0,0,0,0.9)] relative overflow-hidden">
+          {/* Top glowing edge */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-1 bg-primary/50 blur-sm"></div>
+
+          <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center mb-4 border border-outline-variant/30">
+            <span className="material-symbols-outlined text-primary text-[36px]" data-weight="fill">
+              lock
+            </span>
           </div>
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <input 
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className="w-full bg-slate-800/50 border border-slate-700/50 text-slate-200 placeholder-slate-500 rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
-              autoFocus
-            />
-            <button 
+
+          <h2 className="font-headline-md text-xl md:text-2xl text-on-surface mb-2 text-center">
+            Secure Access
+          </h2>
+          <p className="font-body-md text-on-surface-variant text-center mb-6 text-sm">
+            Authentication required to manage AI knowledge bases.
+          </p>
+
+          <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
+            <div className="relative w-full">
+              <input
+                className="w-full bg-surface-container border-b-2 border-outline-variant/30 text-on-surface p-3 outline-none focus:border-primary transition-colors font-body-md text-center tracking-widest placeholder:tracking-normal placeholder:text-on-surface-variant/40 rounded-t-md text-base"
+                placeholder="Enter Passcode"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <button
               type="submit"
-              className="w-full py-3 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-500/25"
+              className="w-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-button-text rounded-full py-3.5 px-6 hover:shadow-[0_0_20px_rgba(242,202,80,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 mt-2 cursor-pointer font-semibold"
             >
-              Unlock Dashboard
+              Unlock Knowledge Center
+              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
             </button>
           </form>
         </div>
@@ -121,165 +138,235 @@ export default function AdminPanel() {
     );
   }
 
+  // 2. Authenticated Knowledge Center Dashboard
   return (
-    <div className="flex-1 overflow-y-auto w-full h-full custom-scrollbar relative">
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-      
-      <div className="p-6 md:p-12 w-full max-w-5xl mx-auto flex flex-col gap-10 relative z-10">
-        
-        <div className="flex items-center gap-4 border-b border-slate-800 pb-6">
-          <div className="p-3 bg-slate-800/80 rounded-2xl border border-slate-700/50 shadow-inner">
-            <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+    <main className="flex-1 pt-24 pb-12 px-4 md:px-12 w-full max-w-[1200px] mx-auto overflow-y-auto min-h-screen relative z-10">
+      {/* Header Section */}
+      <div className="mb-8 border-b border-surface-container-high pb-6 flex items-start gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center border border-outline-variant/20 shadow-inner flex-shrink-0">
+          <span className="material-symbols-outlined text-primary text-2xl" data-weight="fill">
+            folder_managed
+          </span>
+        </div>
+        <div>
+          <h1 className="font-display-lg-mobile md:font-display-lg text-2xl md:text-4xl text-on-surface mb-1 font-semibold">
+            Knowledge <span className="text-primary">Center</span>
+          </h1>
+          <p className="font-body-md text-sm md:text-base text-on-surface-variant">
+            Train the AI by managing your restaurant menus and policy guides.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Active Documents */}
+        <div className="lg:col-span-7 flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+            <h3 className="font-label-caps text-xs text-primary tracking-widest">
+              Active Documents
+            </h3>
+            <span className="bg-surface-container-high px-3 py-1 rounded-full text-xs text-on-surface-variant font-label-caps">
+              Total: {documents.length}
+            </span>
           </div>
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-              Knowledge <span className="text-transparent bg-clip-text bg-linear-to-r from-amber-400 to-orange-500">Center</span>
-            </h2>
-            <p className="text-slate-400 text-sm mt-1">Train the AI by managing your restaurant menus and policy guides.</p>
+
+          <div className="flex flex-col gap-3">
+            {loadingDocs ? (
+              <div className="glass-panel rounded-xl p-12 flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                <span className="font-label-caps text-xs text-on-surface-variant tracking-wider">
+                  Loading knowledge base...
+                </span>
+              </div>
+            ) : documents.length === 0 ? (
+              <div className="glass-panel glass-border rounded-xl p-12 flex flex-col items-center justify-center text-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant/40">
+                  <span className="material-symbols-outlined text-2xl">description</span>
+                </div>
+                <p className="font-body-md text-sm text-on-surface-variant">
+                  No documents found in knowledge base.
+                </p>
+                <span className="font-label-caps text-[10px] text-primary/70">
+                  Upload a PDF or DOCX to train the assistant
+                </span>
+              </div>
+            ) : (
+              documents.map((doc, idx) => (
+                <div
+                  key={idx}
+                  className="glass-panel glass-border glass-glow-hover rounded-xl p-4 flex items-center justify-between group transition-all duration-300 shadow-sm"
+                >
+                  <div className="flex items-center gap-3.5 overflow-hidden">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      doc.toLowerCase().endsWith('.pdf')
+                        ? 'bg-error/10 text-error border border-error/20'
+                        : 'bg-tertiary/10 text-tertiary border border-tertiary/20'
+                    }`}>
+                      <span className="material-symbols-outlined text-[20px]">
+                        {doc.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'description'}
+                      </span>
+                    </div>
+                    <div className="overflow-hidden">
+                      <h4 className="font-body-md text-sm md:text-base text-on-surface font-medium truncate">
+                        {doc}
+                      </h4>
+                      <p className="font-label-caps text-[10px] text-on-surface-variant mt-0.5 tracking-wider">
+                        Vectorized • Ready for RAG
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => handlePreview(doc, e)}
+                      className="w-8 h-8 rounded-full border border-outline-variant/30 flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary transition-colors cursor-pointer"
+                      title="View Chunks"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">visibility</span>
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(doc, e)}
+                      disabled={deletingFile === doc}
+                      className="w-8 h-8 rounded-full border border-outline-variant/30 flex items-center justify-center text-on-surface-variant hover:text-error hover:border-error transition-colors cursor-pointer disabled:opacity-50"
+                      title="Delete Document"
+                    >
+                      {deletingFile === doc ? (
+                        <div className="w-4 h-4 border-2 border-error/30 border-t-error rounded-full animate-spin"></div>
+                      ) : (
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          
-          <div className="lg:col-span-3 flex flex-col gap-6">
-            <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-              Active Documents
+        {/* Right Column: Upload Zone */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+            <h3 className="font-label-caps text-xs text-primary tracking-widest">
+              Upload New Source
             </h3>
-            
-            <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-2 shadow-xl min-h-75">
-              {loadingDocs ? (
-                <div className="h-full min-h-62.5 flex items-center justify-center">
-                  <div className="w-8 h-8 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin"></div>
+          </div>
+
+          <div className="glass-panel border-2 border-dashed border-outline-variant/40 rounded-xl flex flex-col items-center justify-center p-8 min-h-[380px] hover:border-primary hover:bg-primary/5 transition-all duration-300 group relative overflow-hidden">
+            <input
+              type="file"
+              id="file-upload-input"
+              className="hidden"
+              accept=".pdf,.docx"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+
+            <label
+              htmlFor="file-upload-input"
+              className="flex flex-col items-center justify-center w-full h-full cursor-pointer text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(242,202,80,0.2)] transition-all duration-500 border border-outline-variant/30">
+                <span className="material-symbols-outlined text-[32px] text-on-surface-variant group-hover:text-primary transition-colors" data-weight="fill">
+                  cloud_upload
+                </span>
+              </div>
+
+              <h3 className="font-headline-md text-base md:text-lg text-on-surface mb-2 group-hover:text-primary transition-colors">
+                {file ? file.name : "Select or Drop Document"}
+              </h3>
+              <p className="font-body-md text-xs text-on-surface-variant text-center max-w-[260px] mb-4">
+                Upload PDF or DOCX files to expand the chatbot knowledge base.
+              </p>
+
+              <span className="border border-outline-variant/50 text-on-surface px-5 py-1.5 rounded-full font-button-text text-xs group-hover:border-primary group-hover:text-primary transition-colors inline-block">
+                {file ? "Change Selected File" : "Browse Files"}
+              </span>
+            </label>
+
+            {/* Initialize Upload Action Button */}
+            {file && (
+              <button
+                onClick={handleUpload}
+                disabled={uploading}
+                className="w-full mt-6 bg-gradient-to-r from-primary to-primary-container text-on-primary font-button-text text-sm rounded-full py-3 px-6 hover:shadow-[0_0_20px_rgba(242,202,80,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer font-semibold"
+              >
+                {uploading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin"></div>
+                    Vectorizing Knowledge...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[18px]">publish</span>
+                    Initialize Upload & Ingest
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Document Chunks Preview Modal */}
+      {previewFile && (
+        <div className="fixed inset-0 z-[70] bg-background/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel glass-border rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.8)] relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-4 md:p-6 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-lowest/50">
+              <div>
+                <h2 className="font-headline-md text-lg md:text-xl text-on-surface font-semibold">
+                  Document Vectors
+                </h2>
+                <p className="font-body-md text-xs text-on-surface-variant mt-0.5">
+                  {previewFile} • {previewChunks.length} Chunks
+                </p>
+              </div>
+              <button
+                onClick={() => setPreviewFile(null)}
+                className="w-8 h-8 rounded-full hover:bg-surface-variant/50 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 md:p-6 overflow-y-auto flex flex-col gap-3">
+              {loadingPreview ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                  <span className="font-label-caps text-xs text-on-surface-variant">
+                    Fetching vector segments...
+                  </span>
                 </div>
-              ) : documents.length === 0 ? (
-                <div className="h-full min-h-62.5 flex flex-col items-center justify-center text-slate-500 gap-4">
-                  <svg className="w-16 h-16 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
-                  <p>No documents found. Upload one to begin.</p>
+              ) : previewChunks.length === 0 ? (
+                <div className="text-center py-12 text-on-surface-variant text-sm">
+                  No chunks found for this document.
                 </div>
               ) : (
-                <ul className="flex flex-col gap-2 p-2 relative">
-                  {documents.map((doc, idx) => (
-                    <li key={idx} className="group bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-amber-500/30 rounded-2xl p-4 flex items-center justify-between transition-all duration-300">
-                      <div className="flex items-center gap-4 overflow-hidden">
-                        <div className={`p-2.5 rounded-xl shrink-0 ${doc.endsWith('.pdf') ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2.5L17.5 9H13V4.5zM6 20V4h5v7h7v9H6z"/></svg>
-                        </div>
-                        <span className="text-slate-200 font-medium truncate text-sm sm:text-base">{doc}</span>
+                previewChunks.map((chunk, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-surface-container border border-outline-variant/20 rounded-xl p-4 flex flex-col gap-2 relative group"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-2 font-mono text-[11px] uppercase tracking-wider">
+                        <span className="bg-primary/10 text-primary px-2 py-0.5 rounded font-semibold">
+                          IDX: {String(chunk.metadata?.chunk_index + 1 || idx + 1).padStart(3, '0')}
+                        </span>
+                        <span className="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded">
+                          PAGE: {chunk.metadata?.page || 1}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handlePreview(doc)}
-                          className="p-2.5 rounded-xl bg-slate-900/50 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 transition-all border border-slate-700/50 hover:border-amber-500/30"
-                          title="Preview Chunks"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(doc)}
-                          disabled={deletingFile === doc}
-                          className="p-2.5 rounded-xl bg-slate-900/50 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-slate-700/50 hover:border-red-500/30 disabled:opacity-50"
-                          title="Delete Document"
-                        >
-                          {deletingFile === doc ? (
-                             <div className="w-5 h-5 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin"></div>
-                          ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                          )}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                    <p className="font-body-md text-xs md:text-sm text-on-surface/90 leading-relaxed font-light whitespace-pre-wrap">
+                      {chunk.content}
+                    </p>
+                  </div>
+                ))
               )}
             </div>
           </div>
-
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-              Upload New
-            </h3>
-            
-            <div className={`bg-linear-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-md border ${file ? 'border-amber-500/50' : 'border-slate-700/50'} rounded-3xl p-6 shadow-xl transition-all duration-300 relative overflow-hidden h-full flex flex-col justify-between min-h-75`}>
-              <div className="flex-1 flex flex-col justify-center">
-                <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-600/60 rounded-2xl cursor-pointer hover:border-amber-500/60 hover:bg-amber-500/5 transition-all w-full h-full group">
-                  <div className={`p-4 rounded-full mb-4 transition-all duration-300 ${file ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-400 group-hover:text-amber-400 group-hover:scale-110'}`}>
-                    {file ? (
-                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    ) : (
-                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                    )}
-                  </div>
-                  <span className="text-sm text-slate-300 font-medium text-center px-2">
-                    {file ? <span className="text-amber-400 font-bold">{file.name}</span> : "Click to browse or drag and drop"}
-                  </span>
-                  <span className="text-xs text-slate-500 mt-2 font-mono uppercase tracking-wider">PDF or DOCX</span>
-                  <input type="file" className="hidden" accept=".pdf,.docx" onChange={(e) => setFile(e.target.files[0])} />
-                </label>
-              </div>
-
-              <div className="w-full mt-6">
-                <button 
-                  onClick={handleUpload} 
-                  disabled={!file || uploading}
-                  className="w-full py-4 text-sm bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 font-bold rounded-2xl disabled:opacity-20 disabled:grayscale transition-all shadow-lg hover:shadow-amber-500/25 flex justify-center items-center gap-2"
-                >
-                  {uploading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin"></div>
-                      Processing...
-                    </>
-                  ) : "Initialize Upload"}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-
-        {/* Preview Modal */}
-        {previewFile && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setPreviewFile(null)}></div>
-            <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[80vh] flex flex-col shadow-2xl relative z-10 overflow-hidden">
-              <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-                <div>
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <span className="text-amber-500">Preview:</span> {previewFile}
-                  </h3>
-                  <p className="text-slate-400 text-sm mt-1">{previewChunks.length} Chunks found in database</p>
-                </div>
-                <button onClick={() => setPreviewFile(null)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
-                  <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar flex flex-col gap-4 bg-slate-950/30">
-                {loadingPreview ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-4">
-                    <div className="w-10 h-10 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin"></div>
-                    <p className="text-slate-400 animate-pulse">Retrieving chunks from vector store...</p>
-                  </div>
-                ) : previewChunks.length === 0 ? (
-                  <div className="text-center py-20 text-slate-500">
-                    No chunks found for this document. It may have been deleted or not yet ingested.
-                  </div>
-                ) : (
-                  previewChunks.map((chunk, idx) => (
-                    <div key={idx} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 flex flex-col gap-3">
-                      <div className="flex items-center justify-between text-xs font-mono tracking-wider uppercase text-slate-500 border-b border-slate-700/30 pb-2">
-                        <span>Chunk #{chunk.metadata.chunk_index + 1}</span>
-                        <span>Page {chunk.metadata.page || 'N/A'} • {chunk.content.length} chars</span>
-                      </div>
-                      <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{chunk.content}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </main>
   );
 }
