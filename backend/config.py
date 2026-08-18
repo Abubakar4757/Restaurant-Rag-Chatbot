@@ -5,8 +5,8 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# As llama3-8b-8192 is decommissioned, we are using the official 8B replacement
-GROQ_MODEL = "llama-3.1-8b-instant"
+# Using qwen/qwen3.6-27b as the active LLM model
+GROQ_MODEL = "qwen/qwen3.6-27b"
 
 # Use absolute paths for robust resolution
 if os.getenv("RENDER"):
