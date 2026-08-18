@@ -5,8 +5,8 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Using qwen/qwen3.6-27b as the active LLM model
-GROQ_MODEL = "qwen/qwen3.6-27b"
+# Using openai/gpt-oss-20b as the small fast LLM model
+GROQ_MODEL = "openai/gpt-oss-20b"
 
 # Use absolute paths for robust resolution
 if os.getenv("RENDER"):
