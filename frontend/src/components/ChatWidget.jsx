@@ -22,14 +22,30 @@ export default function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [activeSuggestions, setActiveSuggestions] = useState(DEFAULT_SUGGESTIONS);
-  const endOfMessagesRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const isUserScrolledUpRef = useRef(false);
 
-  const scrollToBottom = () => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Auto-scroll to bottom only if user hasn't scrolled up
+  const scrollToBottom = (force = false) => {
+    if (!chatContainerRef.current) return;
+    if (force || !isUserScrolledUpRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Track user scroll position
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    // If user is more than 100px away from bottom, they are reading earlier messages
+    isUserScrolledUpRef.current = scrollHeight - (scrollTop + clientHeight) > 120;
   };
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(false);
   }, [messages, loading]);
 
   // Helper to parse sources and suggestions from text
@@ -78,12 +94,17 @@ export default function ChatWidget() {
 
     const userMsg = messageToSend;
     setInput('');
+    isUserScrolledUpRef.current = false; // reset on new send
+
     const newMessages = [...messages, { id: Date.now(), role: 'user', text: userMsg }];
     setMessages(newMessages);
     setLoading(true);
 
     const botMsgId = Date.now() + 1;
     setMessages(prev => [...prev, { id: botMsgId, role: 'bot', text: '', sources: [] }]);
+
+    // Force scroll down when sending message
+    setTimeout(() => scrollToBottom(true), 50);
 
     try {
       const response = await fetch(`${API.defaults.baseURL}/chat/stream`, {
@@ -151,14 +172,18 @@ export default function ChatWidget() {
   };
 
   return (
-    <main className="flex-1 flex flex-col justify-end pt-20 pb-4 px-4 md:px-8 max-w-[850px] w-full mx-auto relative overflow-hidden h-screen">
+    <main className="flex-1 flex flex-col pt-16 pb-3 px-4 md:px-8 max-w-[850px] w-full mx-auto relative h-[calc(100dvh-4rem)]">
       {/* Background ambient lighting */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[140px]"></div>
       </div>
 
-      {/* Chat Timeline */}
-      <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 py-4 z-10">
+      {/* Chat Timeline with full scroll freedom */}
+      <div
+        ref={chatContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-4 py-4 z-10 custom-scrollbar pr-1 scroll-smooth"
+      >
         {/* System Greeting Header */}
         <div className="text-center text-on-surface-variant/40 font-label-caps text-[11px] mb-2 tracking-widest">
           Session Active • Luigi's Concierge
@@ -237,12 +262,10 @@ export default function ChatWidget() {
             </div>
           </div>
         )}
-
-        <div ref={endOfMessagesRef} />
       </div>
 
       {/* Sticky Footer Interaction Area */}
-      <div className="w-full flex flex-col gap-2.5 pt-3 bg-background relative z-20 before:absolute before:top-[-30px] before:left-0 before:w-full before:h-[30px] before:bg-gradient-to-t before:from-background before:to-transparent">
+      <div className="w-full flex flex-col gap-2.5 pt-2 bg-background relative z-20 before:absolute before:top-[-24px] before:left-0 before:w-full before:h-[24px] before:bg-gradient-to-t before:from-background before:to-transparent">
         {/* Follow-up Suggestions Chips */}
         {activeSuggestions && activeSuggestions.length > 0 && (
           <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1">
@@ -250,7 +273,7 @@ export default function ChatWidget() {
               <button
                 key={idx}
                 onClick={() => handleSend(null, suggestion)}
-                className="flex-shrink-0 bg-transparent border border-outline-variant/40 text-on-surface-variant font-label-caps text-[11px] px-3.5 py-1.5 rounded-full hover:text-primary hover:border-primary/50 transition-all glow-hover active:scale-95"
+                className="flex-shrink-0 bg-transparent border border-outline-variant/40 text-on-surface-variant font-label-caps text-[11px] px-3.5 py-1.5 rounded-full hover:text-primary hover:border-primary/50 transition-all glow-hover active:scale-95 cursor-pointer"
               >
                 {suggestion}
               </button>
