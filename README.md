@@ -1,14 +1,4 @@
----
-title: Luigi's Assistant
-emoji: 🍝
-colorFrom: yellow
-colorTo: red
-sdk: docker
-app_port: 7860
-pinned: false
----
-
-# 🍽️ Restaurant RAG Chatbot (Luigi's Assistant)
+# Restaurant RAG Chatbot (Luigi's Assistant)
 
 🔗 **[Live Demo on Vercel: Luigi's Assistant](https://restaurant-rag-chatbot.vercel.app/)**
 
